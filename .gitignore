@@ -23,6 +23,8 @@ env/
 .DS_Store
 Thumbs.db
 
+CONTEXT.md
+
 # deepowl user data (stored in ~/.deepowl/, not here)
 docs/
 *.db
