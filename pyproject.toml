@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "deepowl-learn"
+version = "0.1.0"
+description = "Local-first AI learning tool"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.12",
+    "rich>=13",
+    "pypdf>=4",
+    "python-docx>=1.1",
+    "ebooklib>=0.18",
+    "beautifulsoup4>=4",
+    "chromadb>=0.5",
+    "ollama>=0.2",
+    "pyyaml>=6",
+    "tiktoken>=0.7",
+    "networkx>=3",
+    "watchdog>=4",
+]
+
+[project.scripts]
+deepowl = "deepowl.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["deepowl"]
