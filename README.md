@@ -1,5 +1,7 @@
 # deepowl
 
+<img width="1202" height="378" alt="logo_deepowl" src="https://github.com/user-attachments/assets/a7ae57fc-7581-4e89-9e5c-da1ac4c42c25" />
+
 > Local AI tutor for your private documents.
 
 Drop your docs. deepowl reads them, builds a knowledge graph,
