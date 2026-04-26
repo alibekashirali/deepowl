@@ -1,7 +1,6 @@
 # deepowl
 
-<img width="1536" height="1024" alt="logo_deepowlv1" src="https://github.com/user-attachments/assets/bfd4963f-77f0-4347-9024-1951276fd814" />
-
+<img width="1424" height="491" alt="logo_deepowlv1" src="https://github.com/user-attachments/assets/a67a62f9-3129-4504-8b37-3a6d0cb0b0b6" />
 
 > Local AI tutor for your private documents.
 
