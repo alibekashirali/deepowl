@@ -7,8 +7,9 @@ CONFIG_FILE = CONFIG_DIR / "config.yaml"
 DEFAULT_CONFIG = {
     "model": {
         "provider": "ollama",
-        "name": "qwen2.5:7b",
+        "name": "qwen3:latest",
         "embedding": "nomic-embed-text",
+        "embedding_provider": "ollama",
     },
     "storage": {
         "db_path": "~/.deepowl/deepowl.db",

@@ -4,49 +4,20 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-import ollama
 from rich.console import Console
 from rich.rule import Rule
+
+from deepowl.llm import call_llm, get_embedding
 
 console = Console()
 
 
-# ── LLM ──────────────────────────────────────────────────────────────────────
-
-def _llm(model: str, system: str, user: str) -> str:
-    """Stream LLM response to stdout. Returns full text."""
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-    ]
-    try:
-        stream = ollama.chat(model=model, messages=messages, stream=True)
-        result = ""
-        for chunk in stream:
-            piece = chunk["message"]["content"]
-            result += piece
-            sys.stdout.write(piece)
-            sys.stdout.flush()
-        sys.stdout.write("\n")
-        sys.stdout.flush()
-        return result
-    except Exception as e:
-        console.print(f"[red]LLM error: {e}[/red]")
-        console.print("[dim]Is Ollama running? Try: ollama serve[/dim]")
-        raise
-
-
-def _extract_score(text: str) -> int:
-    match = re.search(r"score[:\s]+(\d+)", text, re.IGNORECASE)
-    return min(100, max(0, int(match.group(1)))) if match else 50
-
-
 # ── RAG ───────────────────────────────────────────────────────────────────────
 
-def _retrieve_chunks(query: str, embed_model: str, collection, n: int = 4) -> list[dict]:
-    response = ollama.embeddings(model=embed_model, prompt=query)
+def _retrieve_chunks(query: str, embed_provider: str, embed_model: str, collection, n: int = 4) -> list[dict]:
+    embedding = get_embedding(embed_provider, embed_model, query)
     results = collection.query(
-        query_embeddings=[response["embedding"]],
+        query_embeddings=[embedding],
         n_results=n,
         include=["documents", "metadatas"],
     )
@@ -69,14 +40,20 @@ def _format_context(chunks: list[dict]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def _rag_answer(question: str, model: str, embed_model: str, collection) -> None:
-    chunks = _retrieve_chunks(question, embed_model, collection)
+def _extract_score(text: str) -> int:
+    match = re.search(r"score[:\s]+(\d+)", text, re.IGNORECASE)
+    return min(100, max(0, int(match.group(1)))) if match else 50
+
+
+def _rag_answer(question: str, provider: str, model: str, embed_provider: str, embed_model: str, collection) -> None:
+    chunks = _retrieve_chunks(question, embed_provider, embed_model, collection)
     if not chunks:
         console.print("[dim]No relevant content found in your docs.[/dim]")
         return
     context = _format_context(chunks)
     console.print("\n[bold magenta]■ Answer[/bold magenta]\n")
-    _llm(
+    call_llm(
+        provider,
         model,
         system=(
             "Answer the student's question using ONLY the provided context from their documents. "
@@ -88,7 +65,14 @@ def _rag_answer(question: str, model: str, embed_model: str, collection) -> None
 
 # ── Session ───────────────────────────────────────────────────────────────────
 
-def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collection) -> None:
+def run_session(
+    conn: sqlite3.Connection,
+    provider: str,
+    model: str,
+    embed_provider: str,
+    embed_model: str,
+    collection,
+) -> None:
     from deepowl.graph.builder import build_graph
     from deepowl.teaching.curriculum import next_concept, update_progress, get_progress_summary
 
@@ -109,7 +93,7 @@ def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collecti
         f"[yellow]{summary['in_progress']}[/yellow] in progress  "
         f"[dim]{summary['not_started']}[/dim] not started"
         + (f"  [red]{summary['outdated']} outdated[/red]" if summary["outdated"] else "")
-        + "\n"
+        + f"\n[dim]model: {provider}/{model}[/dim]\n"
     )
 
     session_start = datetime.now()
@@ -126,13 +110,11 @@ def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collecti
             desc = concept.get("description", "")
             concept_id = concept["id"]
 
-            # ── Header ──
             console.print(Rule(f"[bold]{name}[/bold]", style="cyan"))
             if desc:
                 console.print(f"[dim]{desc}[/dim]\n")
 
-            # Retrieve relevant chunks for this concept
-            chunks = _retrieve_chunks(name, embed_model, collection)
+            chunks = _retrieve_chunks(name, embed_provider, embed_model, collection)
             context = _format_context(chunks)
 
             if not chunks:
@@ -142,7 +124,8 @@ def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collecti
 
             # ── Explain ──
             console.print("\n[bold cyan]■ Explanation[/bold cyan]\n")
-            explanation = _llm(
+            explanation = call_llm(
+                provider,
                 model,
                 system=(
                     "You are a concise, clear tutor. Explain the concept using ONLY the provided context. "
@@ -151,13 +134,13 @@ def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collecti
                 user=f"Concept: {name}\n\nContext:\n{context}",
             )
 
-            # ── Pause ──
             console.print("\n[dim]Press Enter to continue...[/dim]", end="")
             input()
 
             # ── Question ──
             console.print("\n[bold yellow]■ Question[/bold yellow]\n")
-            question = _llm(
+            question = call_llm(
+                provider,
                 model,
                 system=(
                     "Ask ONE specific question to check the student's understanding of the concept. "
@@ -166,7 +149,6 @@ def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collecti
                 user=f"Concept: {name}\n\nExplanation:\n{explanation}\n\nContext:\n{context}",
             )
 
-            # ── Answer ──
             console.print()
             answer = input("> ").strip()
 
@@ -177,7 +159,8 @@ def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collecti
             else:
                 # ── Evaluate ──
                 console.print("\n[bold green]■ Feedback[/bold green]\n")
-                evaluation = _llm(
+                evaluation = call_llm(
+                    provider,
                     model,
                     system=(
                         "Evaluate the student's answer briefly (1-2 sentences). "
@@ -198,10 +181,8 @@ def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collecti
                 bar = "█" * (score // 10) + "░" * (10 - score // 10)
                 console.print(f"\n[dim][{bar}] {score}/100[/dim]")
 
-            # Reload graph after progress update
             graph = build_graph(conn)
 
-            # ── Continue? ──
             while True:
                 console.print("\n[dim]Enter to continue · q to quit · ? to ask[/dim]  ", end="")
                 cmd = input().strip().lower()
@@ -210,7 +191,7 @@ def run_session(conn: sqlite3.Connection, model: str, embed_model: str, collecti
                 elif cmd.startswith("?"):
                     q = cmd[1:].strip() or input("Your question: ").strip()
                     if q:
-                        _rag_answer(q, model, embed_model, collection)
+                        _rag_answer(q, provider, model, embed_provider, embed_model, collection)
                 else:
                     break
             if cmd == "q":

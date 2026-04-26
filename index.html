@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>deepowl — learn from your own documents</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #000000;
+    --bg2:       #0a0c10;
+    --surface:   #0f1318;
+    --surface2:  #151b24;
+    --border:    #1a2235;
+    --border2:   #243044;
+    --blue-light: #5ba3f5;
+    --blue-mid:   #3a7bd5;
+    --blue-dark:  #1e4fa8;
+    --amber:      #f5a623;
+    --amber-dark: #d4891a;
+    --amber-glow: rgba(245,166,35,0.15);
+    --text:   #eef2f8;
+    --muted:  #5a6a82;
+    --muted2: #8a9ab5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    overflow-x: hidden;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 9000;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 0 56px; height: 68px;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: background 0.4s, border-color 0.4s;
+    border-bottom: 1px solid transparent;
+  }
+  nav.scrolled { background: rgba(0,0,0,0.88); backdrop-filter: blur(20px); border-color: var(--border); }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-text { font-size: 20px; font-weight: 800; color: var(--amber); letter-spacing: -0.5px; }
+  .nav-links { display: flex; gap: 36px; list-style: none; }
+  .nav-links a { font-size: 13px; font-weight: 500; color: var(--muted2); text-decoration: none; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--amber); }
+  .nav-cta {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    padding: 9px 20px; border-radius: 6px;
+    border: 1px solid var(--amber); color: var(--amber);
+    text-decoration: none; transition: all 0.2s; letter-spacing: 0.02em;
+  }
+  .nav-cta:hover { background: var(--amber); color: #000; box-shadow: 0 0 24px var(--amber-glow); }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: grid; grid-template-columns: 1fr 1fr;
+    align-items: center;
+    padding: 100px 56px 80px;
+    gap: 64px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: -200px; left: -200px;
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(30,79,168,0.18) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: '';
+    position: absolute; top: 60px; right: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(245,166,35,0.07) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .hero-left { position: relative; z-index: 2; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--amber);
+    border: 1px solid rgba(245,166,35,0.25); background: rgba(245,166,35,0.06);
+    padding: 6px 14px; border-radius: 100px; margin-bottom: 36px;
+    animation: fadeUp 0.7s ease both;
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.75)} }
+
+  h1 {
+    font-size: clamp(44px, 5.5vw, 80px); font-weight: 800;
+    line-height: 1.0; letter-spacing: -2.5px; margin-bottom: 28px;
+    animation: fadeUp 0.7s 0.08s ease both;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--blue-light) 0%, var(--blue-mid) 50%, var(--amber) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero-desc {
+    font-size: 17px; color: var(--muted2); line-height: 1.75;
+    max-width: 480px; margin-bottom: 44px;
+    animation: fadeUp 0.7s 0.16s ease both;
+  }
+  .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; animation: fadeUp 0.7s 0.24s ease both; }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 13px 26px; background: var(--amber); color: #000;
+    font-weight: 700; font-size: 14px; border-radius: 8px;
+    text-decoration: none; transition: all 0.2s; letter-spacing: -0.2px;
+  }
+  .btn-primary:hover { background: #ffbe45; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(245,166,35,0.35); }
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 26px; background: transparent; color: var(--muted2);
+    font-size: 14px; font-weight: 500; border-radius: 8px;
+    border: 1px solid var(--border2); text-decoration: none; transition: all 0.2s;
+  }
+  .btn-ghost:hover { border-color: var(--blue-light); color: var(--blue-light); }
+
+  .hero-right { position: relative; z-index: 2; animation: fadeLeft 0.9s 0.3s ease both; }
+  @keyframes fadeLeft { from{opacity:0;transform:translateX(48px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Terminal */
+  .terminal {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 32px 80px rgba(0,0,0,0.7), 0 0 60px rgba(30,79,168,0.08);
+  }
+  .t-header {
+    background: var(--surface); padding: 13px 18px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .t-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .t-dot.r{background:#ff5f57} .t-dot.y{background:#febc2e} .t-dot.g{background:#28c840}
+  .t-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-left: 8px; letter-spacing: 0.05em; }
+  .t-body { padding: 24px 28px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.85; }
+  .t-row { display: flex; gap: 10px; }
+  .prompt{color:var(--amber)} .cmd{color:var(--text)}
+  .out{color:var(--muted2);padding-left:4px}
+  .out.ok{color:#4ade80} .out.info{color:var(--blue-light)} .out.owl{color:var(--amber)}
+  .cursor-blink { display:inline-block; width:8px; height:14px; background:var(--amber); vertical-align:middle; margin-left:2px; animation:blink 1s step-end infinite; }
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+  /* STATS */
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .stat { padding:32px 48px; border-right:1px solid var(--border); transition:background 0.3s; }
+  .stat:last-child{border-right:none}
+  .stat:hover{background:var(--surface)}
+  .stat-num { font-family:'JetBrains Mono',monospace; font-size:34px; font-weight:700; color:var(--amber); letter-spacing:-1px; line-height:1; }
+  .stat-label { font-size:12px; color:var(--muted); margin-top:6px; font-weight:500; letter-spacing:0.04em; font-family:'JetBrains Mono',monospace; }
+
+  /* SECTIONS */
+  .section{padding:96px 56px}
+  .eyebrow { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:var(--amber); margin-bottom:16px; }
+  .section-h { font-size:clamp(32px,4vw,52px); font-weight:800; letter-spacing:-2px; line-height:1.0; margin-bottom:20px; }
+  .section-sub { font-size:16px; color:var(--muted2); line-height:1.7; max-width:500px; }
+
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border-radius:14px; overflow:hidden; margin-top:56px; }
+  .step { background:var(--bg2); padding:44px; position:relative; transition:background 0.3s; }
+  .step:hover{background:var(--surface)}
+  .step::before { content:''; position:absolute; top:0;left:0;right:0;height:2px; background:linear-gradient(90deg,var(--blue-mid),var(--amber)); opacity:0; transition:opacity 0.3s; }
+  .step:hover::before{opacity:1}
+  .step-num { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.25em; color:var(--muted); margin-bottom:24px; text-transform:uppercase; }
+  .step-icon { width:52px;height:52px; border-radius:12px; border:1px solid var(--border2); display:grid; place-items:center; font-size:22px; margin-bottom:20px; background:var(--surface2); transition:border-color 0.3s,box-shadow 0.3s; }
+  .step:hover .step-icon { border-color:var(--amber); box-shadow:0 0 20px rgba(245,166,35,0.15); }
+  .step-title{font-size:18px;font-weight:700;letter-spacing:-0.5px;margin-bottom:12px}
+  .step-desc{font-size:14px;color:var(--muted2);line-height:1.65}
+
+  .features-wrap{padding:0 56px 96px}
+  .features-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-top:56px; }
+  .feat { background:var(--bg2);padding:44px;transition:background 0.3s;position:relative;overflow:hidden; }
+  .feat:hover{background:var(--surface)}
+  .feat::after { content:'';position:absolute;bottom:-60px;right:-60px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(245,166,35,0.06),transparent 70%);opacity:0;transition:opacity 0.4s; }
+  .feat:hover::after{opacity:1}
+  .feat-tag { display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10px;letter-spacing:0.15em;text-transform:uppercase; color:var(--blue-light); background:rgba(91,163,245,0.1); border:1px solid rgba(91,163,245,0.2); padding:4px 11px;border-radius:100px;margin-bottom:20px; }
+  .feat-title{font-size:21px;font-weight:700;letter-spacing:-0.5px;margin-bottom:12px}
+  .feat-desc{font-size:14px;color:var(--muted2);line-height:1.65}
+  .code-block { margin-top:24px;padding:18px 20px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8; }
+  .cb-k{color:var(--amber)} .cb-v{color:var(--muted2)} .cb-s{color:var(--blue-light)} .cb-c{color:var(--muted)}
+
+  .stack-wrap{padding:0 56px 96px}
+  .pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:44px}
+  .pill { display:flex;align-items:center;gap:8px; font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500; padding:10px 20px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--muted2);transition:all 0.2s;cursor:default; }
+  .pill:hover{border-color:var(--amber);color:var(--amber);background:var(--surface);box-shadow:0 0 18px rgba(245,166,35,0.08)}
+  .pill-dot{width:7px;height:7px;border-radius:50%}
+
+  .cta-wrap{padding:0 56px 100px}
+  .cta-box { border-radius:18px;padding:80px;border:1px solid var(--border2);background:var(--bg2); display:grid;grid-template-columns:1fr auto;align-items:center;gap:64px;position:relative;overflow:hidden; }
+  .cta-box::before { content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 0% 50%,rgba(30,79,168,0.12) 0%,transparent 60%),radial-gradient(ellipse at 100% 50%,rgba(245,166,35,0.07) 0%,transparent 60%);pointer-events:none; }
+  .cta-title{font-size:clamp(32px,3.5vw,48px);font-weight:800;letter-spacing:-2px;line-height:1.05;position:relative;z-index:1}
+  .cta-title em{font-style:normal;color:var(--amber)}
+  .cta-sub{font-size:15px;color:var(--muted2);margin-top:14px;line-height:1.6;max-width:420px}
+  .cta-right{display:flex;flex-direction:column;gap:14px;min-width:280px;position:relative;z-index:1}
+  .install-line { display:flex;align-items:center;gap:12px; font-family:'JetBrains Mono',monospace;font-size:13px; padding:14px 18px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--muted2); }
+  .install-line .dollar{color:var(--amber)}
+  .install-note{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);text-align:center;letter-spacing:0.08em}
+
+  footer{border-top:1px solid var(--border);padding:28px 56px;display:flex;align-items:center;justify-content:space-between}
+  .footer-links{display:flex;gap:28px;list-style:none}
+  .footer-links a{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-decoration:none;letter-spacing:0.05em;transition:color 0.2s}
+  .footer-links a:hover{color:var(--amber)}
+  .footer-copy{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:0.05em}
+
+  @media(max-width:1024px){
+    .hero{grid-template-columns:1fr;padding:100px 32px 60px}
+    .hero-right{display:none}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .stat{padding:24px 28px}
+    .stat:nth-child(2){border-right:none}
+    .stat:nth-child(3){border-top:1px solid var(--border);border-right:1px solid var(--border)}
+    .stat:nth-child(4){border-top:1px solid var(--border);border-right:none}
+    .steps{grid-template-columns:1fr}
+    .features-grid{grid-template-columns:1fr}
+    .section,.features-wrap,.stack-wrap,.cta-wrap{padding:60px 32px}
+    .cta-box{grid-template-columns:1fr;padding:48px 32px}
+    footer{flex-direction:column;gap:20px;padding:28px 32px;text-align:center}
+    nav{padding:0 32px}
+    .nav-links{display:none}
+  }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <a href="#" class="logo">
+    <img src="https://github.com/user-attachments/assets/a67a62f9-3129-4504-8b37-3a6d0cb0b0b6" width="130" height="130" style="object-fit:contain;filter:drop-shadow(0 0 8px rgba(91,163,245,0.4))">
+  </a>
+  <ul class="nav-links">
+    <li><a href="#how">how it works</a></li>
+    <li><a href="#features">features</a></li>
+    <li><a href="#stack">stack</a></li>
+    <li><a href="https://github.com/alibekashirali/deepowl">github</a></li>
+  </ul>
+  <a href="https://github.com/alibekashirali/deepowl" class="nav-cta">↓ install</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-left">
+    <div class="badge"><span class="badge-dot"></span> open-source · local-first · offline</div>
+    <h1>Teach yourself<br>with <em>your own</em><br>knowledge.</h1>
+    <p class="hero-desc">deepowl reads your local documents, builds a knowledge graph, and teaches you through Socratic dialogue — entirely on your machine. No cloud. No API costs. Zero data leaves your device.</p>
+    <div class="hero-actions">
+      <a href="https://github.com/alibekashirali/deepowl" class="btn-primary">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+      <a href="#how" class="btn-ghost">how it works ↓</a>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="terminal">
+      <div class="t-header">
+        <span class="t-dot r"></span><span class="t-dot y"></span><span class="t-dot g"></span>
+        <span class="t-title">deepowl — ~/research/papers</span>
+      </div>
+      <div class="t-body">
+        <div class="t-row"><span class="prompt">$</span><span class="cmd"> deepowl ingest ./papers/ &amp;&amp; deepowl build</span></div>
+        <div class="t-row"><span class="out">📚 Indexing 47 documents...</span></div>
+        <div class="t-row"><span class="out ok">✓ ChromaDB vectors stored (local)</span></div>
+        <div class="t-row"><span class="out ok">✓ Knowledge graph: 312 nodes, 891 edges</span></div>
+        <div class="t-row"><span class="out owl">🦉 Ready. Ask me anything.</span></div>
+        <br>
+        <div class="t-row"><span class="prompt">deepowl&gt;</span><span class="cmd"> what is knowledge tracing?</span></div>
+        <br>
+        <div class="t-row"><span class="out info">Before I explain — what do you already</span></div>
+        <div class="t-row"><span class="out info">know about measuring student learning?</span></div>
+        <br>
+        <div class="t-row"><span class="prompt">deepowl&gt;</span><span class="cmd"> tracking what students answer correctly?</span></div>
+        <br>
+        <div class="t-row"><span class="out owl">Exactly. KT models P(correct | history).</span></div>
+        <div class="t-row"><span class="out owl">→ Corbett &amp; Anderson (1994), p.12</span></div>
+        <br>
+        <div class="t-row"><span class="prompt">deepowl&gt;</span><span class="cursor-blink"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="stat"><div class="stat-num">100%</div><div class="stat-label">local · no cloud</div></div>
+  <div class="stat"><div class="stat-num">10+</div><div class="stat-label">supported llm models</div></div>
+  <div class="stat"><div class="stat-num">∞</div><div class="stat-label">your own documents</div></div>
+  <div class="stat"><div class="stat-num">0₸</div><div class="stat-label">api costs · forever</div></div>
+</div>
+
+<section class="section" id="how">
+  <div class="eyebrow">// how it works</div>
+  <h2 class="section-h">Three steps.<br>One owl.</h2>
+  <p class="section-sub">deepowl turns raw documents into an interactive knowledge tutor that knows exactly what's in them.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01 / INGEST</div>
+      <div class="step-icon">📂</div>
+      <div class="step-title">Point at your files</div>
+      <p class="step-desc">Drop any folder — PDFs, Markdown, plain text. deepowl parses, chunks intelligently, and stores vectors in a local ChromaDB instance on your machine.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02 / GRAPH</div>
+      <div class="step-icon">🕸️</div>
+      <div class="step-title">Knowledge graph builds itself</div>
+      <p class="step-desc">NetworkX maps relationships between concepts across all your documents. Ideas that appear together get connected. You get a navigable web of knowledge.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03 / LEARN</div>
+      <div class="step-icon">🧠</div>
+      <div class="step-title">Socratic dialogue begins</div>
+      <p class="step-desc">deepowl doesn't lecture — it asks you questions first, builds on your answers, and cites the exact source. Every response is grounded in your documents.</p>
+    </div>
+  </div>
+</section>
+
+<div class="features-wrap" id="features">
+  <div class="eyebrow">// features</div>
+  <h2 class="section-h">Built different.</h2>
+  <div class="features-grid">
+    <div class="feat">
+      <span class="feat-tag">LOCAL &amp; CLOUD LLM</span>
+      <div class="feat-title">Your choice of LLM</div>
+      <p class="feat-desc">Run fully local with Ollama (qwen3, Llama 3, Mistral, DeepSeek) or connect to OpenAI, Anthropic, or Groq. Switch anytime — your data stays yours.</p>
+      <div class="code-block">
+        <span class="cb-k">$</span><span class="cb-v"> deepowl config set model.provider ollama</span><br>
+        <span class="cb-k">$</span><span class="cb-v"> deepowl config set model.provider openai</span><br>
+        <span class="cb-k">$</span><span class="cb-v"> deepowl config set model.provider anthropic</span><br>
+        <span class="cb-c">→ swap provider anytime</span>
+      </div>
+    </div>
+    <div class="feat">
+      <span class="feat-tag">KNOWLEDGE GRAPH</span>
+      <div class="feat-title">Concepts, not just chunks</div>
+      <p class="feat-desc">The LLM extracts concepts and relations from your docs, NetworkX builds the graph. deepowl understands how your ideas connect — not just which words match a query.</p>
+      <div class="code-block">
+        <span class="cb-s">Knowledge Tracing</span><span class="cb-v"> ── </span><span class="cb-s">BKT</span><br>
+        <span class="cb-v">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── </span><span class="cb-v">IRT ── DKT</span><br>
+        <span class="cb-k">Bayesian</span><span class="cb-v"> ──────────────┘</span>
+      </div>
+    </div>
+    <div class="feat">
+      <span class="feat-tag">PEDAGOGY</span>
+      <div class="feat-title">Socratic, not encyclopedic</div>
+      <p class="feat-desc">Inspired by Bloom's taxonomy and spaced repetition. deepowl guides you to answers through questions — it never just dumps information.</p>
+      <div class="code-block">
+        <span class="cb-c">deepowl:</span><span class="cb-v"> What do you think causes...<br></span>
+        <span class="cb-c">you:</span><span class="cb-v"> Maybe the gradient vanishes?<br></span>
+        <span class="cb-k">deepowl:</span><span class="cb-v"> Correct — this is exactly why<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;transformers replaced RNNs →</span>
+      </div>
+    </div>
+    <div class="feat">
+      <span class="feat-tag">OPEN SOURCE</span>
+      <div class="feat-title">Apache 2.0 licensed. Fork it.</div>
+      <p class="feat-desc">Every line of deepowl is on GitHub under the Apache 2.0 license. Extend it, embed it, contribute. Built for researchers, engineers, and lifelong learners who own their tools.</p>
+      <div class="code-block">
+        <span class="cb-k">$</span><span class="cb-v"> git clone github.com/alibekashirali/deepowl</span><br>
+        <span class="cb-k">$</span><span class="cb-v"> pip install -e .</span><br>
+        <span class="cb-k">$</span><span class="cb-v"> deepowl ingest ./docs/ &amp;&amp; deepowl build</span><br>
+        <span class="cb-c">→ up and running in 2 minutes</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stack-wrap" id="stack">
+  <div class="eyebrow">// built with</div>
+  <h2 class="section-h">The stack.</h2>
+  <div class="pills">
+    <div class="pill"><span class="pill-dot" style="background:#3776AB"></span>Python 3.11+</div>
+    <div class="pill"><span class="pill-dot" style="background:#f5a623"></span>Ollama</div>
+    <div class="pill"><span class="pill-dot" style="background:#5ba3f5"></span>qwen3:latest</div>
+    <div class="pill"><span class="pill-dot" style="background:#f97316"></span>OpenAI / Anthropic / Groq</div>
+    <div class="pill"><span class="pill-dot" style="background:#3a7bd5"></span>ChromaDB</div>
+    <div class="pill"><span class="pill-dot" style="background:#4ade80"></span>NetworkX</div>
+    <div class="pill"><span class="pill-dot" style="background:#94a3b8"></span>SQLite</div>
+    <div class="pill"><span class="pill-dot" style="background:#f5a623"></span>Typer CLI</div>
+    <div class="pill"><span class="pill-dot" style="background:#eef2f8"></span>Rich TUI</div>
+  </div>
+</div>
+
+<div class="cta-wrap">
+  <div class="cta-box">
+    <div>
+      <div class="eyebrow">// get started</div>
+      <h2 class="cta-title">Start learning from<br><em>your</em> knowledge.</h2>
+      <p class="cta-sub">Install deepowl, point it at any folder, and let the owl teach you what's inside — in your own words, from your own documents.</p>
+    </div>
+    <div class="cta-right">
+      <div class="install-line"><span class="dollar">$</span> pip install git+https://github.com/alibekashirali/deepowl.git</div>
+      <a href="https://github.com/alibekashirali/deepowl" class="btn-primary" style="justify-content:center">
+        <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+      <p class="install-note">python 3.11+ · ollama (local) or openai / anthropic / groq api key</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <a href="#" class="logo">
+    <img src="https://github.com/user-attachments/assets/a67a62f9-3129-4504-8b37-3a6d0cb0b0b6" width="80" height="80" style="object-fit:contain">
+  </a>
+  <ul class="footer-links">
+    <li><a href="https://github.com/alibekashirali/deepowl">github</a></li>
+    <li><a href="https://github.com/alibekashirali/deepowl/blob/main/README.md">docs</a></li>
+    <li><a href="https://github.com/alibekashirali/deepowl/issues">issues</a></li>
+    <li><a href="https://github.com/alibekashirali/deepowl/blob/main/LICENSE">apache 2.0</a></li>
+  </ul>
+  <span class="footer-copy">built by alibekashirali · 2026</span>
+</footer>
+
+<script>
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 10));
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import chromadb
-import ollama
 
 from deepowl.ingest.chunker import Chunk
+from deepowl.llm import get_embedding
 
 COLLECTION_NAME = "deepowl"
 
@@ -14,7 +14,12 @@ def get_collection(chroma_path: str) -> chromadb.Collection:
     )
 
 
-def embed_chunks(chunks: list[Chunk], collection: chromadb.Collection, model: str) -> list[str]:
+def embed_chunks(
+    chunks: list[Chunk],
+    collection: chromadb.Collection,
+    provider: str,
+    model: str,
+) -> list[str]:
     """Embed chunks and upsert into ChromaDB. Returns list of IDs."""
     if not chunks:
         return []
@@ -23,10 +28,7 @@ def embed_chunks(chunks: list[Chunk], collection: chromadb.Collection, model: st
     texts = [c.content for c in chunks]
     metadatas = [{"source": c.source, "chunk_index": c.chunk_index} for c in chunks]
 
-    embeddings = []
-    for text in texts:
-        response = ollama.embeddings(model=model, prompt=text)
-        embeddings.append(response["embedding"])
+    embeddings = [get_embedding(provider, model, text) for text in texts]
 
     collection.upsert(
         ids=ids,

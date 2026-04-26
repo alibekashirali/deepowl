@@ -22,6 +22,11 @@ dependencies = [
     "watchdog>=4",
 ]
 
+[project.optional-dependencies]
+openai = ["openai>=1.0"]
+anthropic = ["anthropic>=0.25"]
+all = ["openai>=1.0", "anthropic>=0.25"]
+
 [project.scripts]
 deepowl = "deepowl.cli:app"
 

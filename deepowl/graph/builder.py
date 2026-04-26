@@ -5,7 +5,8 @@ from datetime import datetime
 from pathlib import Path
 
 import networkx as nx
-import ollama
+
+from deepowl.llm import call_llm
 
 
 # ── Extraction ────────────────────────────────────────────────────────────────
@@ -25,16 +26,9 @@ Rules:
 """
 
 
-def extract_concepts(chunk_content: str, source: str, model: str) -> list[dict]:
-    response = ollama.chat(
-        model=model,
-        messages=[
-            {"role": "system", "content": _EXTRACT_SYSTEM},
-            {"role": "user", "content": chunk_content[:2000]},
-        ],
-        options={"temperature": 0.1},
-    )
-    return _parse_concepts(response["message"]["content"], source)
+def extract_concepts(chunk_content: str, source: str, provider: str, model: str) -> list[dict]:
+    text = call_llm(provider, model, system=_EXTRACT_SYSTEM, user=chunk_content[:2000])
+    return _parse_concepts(text, source)
 
 
 def _parse_concepts(text: str, source: str) -> list[dict]:
