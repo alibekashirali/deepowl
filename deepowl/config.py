@@ -7,7 +7,7 @@ CONFIG_FILE = CONFIG_DIR / "config.yaml"
 DEFAULT_CONFIG = {
     "model": {
         "provider": "ollama",
-        "name": "qwen3:latest",
+        "name": "qwen2.5:7b",
         "embedding": "nomic-embed-text",
         "embedding_provider": "ollama",
     },
@@ -24,12 +24,25 @@ DEFAULT_CONFIG = {
 }
 
 
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Fill missing keys in override from base (non-destructive)."""
+    result = dict(base)
+    for k, v in override.items():
+        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+            result[k] = _deep_merge(result[k], v)
+        else:
+            result[k] = v
+    return result
+
+
 def load_config() -> dict:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     if not CONFIG_FILE.exists():
         CONFIG_FILE.write_text(yaml.dump(DEFAULT_CONFIG, default_flow_style=False))
+        return dict(DEFAULT_CONFIG)
     with CONFIG_FILE.open() as f:
-        return yaml.safe_load(f)
+        on_disk = yaml.safe_load(f) or {}
+    return _deep_merge(DEFAULT_CONFIG, on_disk)
 
 
 def resolve_paths(config: dict) -> dict:
